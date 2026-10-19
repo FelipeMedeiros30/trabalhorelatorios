@@ -1,0 +1,67 @@
+@startuml sequencia_post_usinas
+title Exercicio 4, Diagrama de Sequencia, POST /v1/usinas
+
+skinparam responseMessageBelowArrow true
+skinparam sequenceMessageAlign center
+
+actor "Cliente HTTP\n(Swagger / Frontend)" as Cliente
+participant "FastAPI\n(app/main.py)" as FastAPI
+participant "UsinaController\n(Apresentacao)" as Controller
+participant "UsinaService\n(Servico)" as Service
+participant "UsinaRepository\n(Persistencia)" as Repository
+participant "Usina / UsinaCreate\n(Dominio, Pydantic)" as Dominio
+
+Cliente -> FastAPI : POST /v1/usinas\n{nome, localizacao,\ncapacidade_geracao_kwh, status}
+activate FastAPI
+
+FastAPI -> Dominio : validar corpo como UsinaCreate
+activate Dominio
+
+alt corpo invalido (ex: capacidade_geracao_kwh <= 0)
+    Dominio --> FastAPI : ValidationError
+    deactivate Dominio
+    FastAPI -> FastAPI : tratar_erro_de_validacao()\n(Exercicio 3)
+    FastAPI --> Cliente : 422\n{error: {code: "ERRO_DE_VALIDACAO",\nmessage, status, details}}
+else corpo valido
+    Dominio --> FastAPI : UsinaCreate
+
+    FastAPI -> Controller : criar_usina(dados)
+    activate Controller
+
+    Controller -> Service : criar(dados)
+    activate Service
+    note right of Controller
+      O Controller nao aplica regra de negocio
+      nem fala com a Persistencia, apenas delega.
+    end note
+
+    Service -> Repository : criar(dados)
+    activate Repository
+
+    Repository -> Repository : id = _proximo_id\ndata_ativacao = date.today()
+    Repository -> Dominio : Usina(id, data_ativacao, **dados)
+    activate Dominio
+    Dominio --> Repository : usina
+    deactivate Dominio
+
+    Repository -> Repository : _usinas[usina.id] = usina\n_proximo_id += 1
+    Repository --> Service : usina
+    deactivate Repository
+
+    Service --> Controller : usina
+    deactivate Service
+
+    Controller --> FastAPI : usina
+    deactivate Controller
+
+    FastAPI -> Dominio : serializar com response_model=Usina
+    activate Dominio
+    Dominio --> FastAPI : JSON da usina
+    deactivate Dominio
+
+    FastAPI --> Cliente : 201 Created\n{id, nome, localizacao,\ncapacidade_geracao_kwh,\nstatus, data_ativacao}
+end
+
+deactivate FastAPI
+
+@enduml
