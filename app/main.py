@@ -7,15 +7,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.controllers.auth_controller import router as auth_router
 from app.controllers.usina_controller import router as usina_router
 from app.services.usina_service import ErroDeNegocio
 
 app = FastAPI(
     title="Bulbe Energia, API de Usinas",
-    description="Handson de CRUD em FastAPI, arquitetura em camadas (Aula 09).",
-    version="1.0.0",
+    description="Handson de CRUD em FastAPI, arquitetura em camadas (Aula 09) + JWT e testes (Aula 10).",
+    version="2.0.0",
 )
 
+app.include_router(auth_router)
 app.include_router(usina_router)
 
 
@@ -33,7 +35,8 @@ def resposta_de_erro(code: str, message: str, status: int, details: list | None 
     }
     if details:
         corpo["error"]["details"] = details
-    return JSONResponse(status_code=status, content=corpo)
+    headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+    return JSONResponse(status_code=status, content=corpo, headers=headers)
 
 
 @app.exception_handler(ErroDeNegocio)
