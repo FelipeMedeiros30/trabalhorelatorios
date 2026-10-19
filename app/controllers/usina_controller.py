@@ -1,10 +1,13 @@
 """
 Camada de Apresentacao, UsinaController (APIRouter).
+Leitura e publica; criar, atualizar e remover exigem token JWT.
 """
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
+from app.core.dependencies import obter_usuario_atual
 from app.domain.usina import StatusUsina, Usina, UsinaCreate, UsinaUpdate
+from app.domain.usuario import Usuario
 from app.services.usina_service import usina_service
 
 router = APIRouter(prefix="/v1/usinas", tags=["Usinas"])
@@ -35,18 +38,28 @@ def buscar_usina(usina_id: int) -> Usina:
 
 
 @router.post("", response_model=Usina, status_code=status.HTTP_201_CREATED)
-def criar_usina(dados: UsinaCreate) -> Usina:
-    """Cria uma nova usina."""
+def criar_usina(
+    dados: UsinaCreate,
+    usuario: Usuario = Depends(obter_usuario_atual),
+) -> Usina:
+    """Cria uma nova usina. Requer autenticacao."""
     return usina_service.criar(dados)
 
 
 @router.put("/{usina_id}", response_model=Usina)
-def atualizar_usina(usina_id: int, dados: UsinaUpdate) -> Usina:
-    """Atualiza os dados de uma usina existente."""
+def atualizar_usina(
+    usina_id: int,
+    dados: UsinaUpdate,
+    usuario: Usuario = Depends(obter_usuario_atual),
+) -> Usina:
+    """Atualiza os dados de uma usina existente. Requer autenticacao."""
     return usina_service.atualizar(usina_id, dados)
 
 
 @router.delete("/{usina_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remover_usina(usina_id: int) -> None:
-    """Remove uma usina. So e permitido quando o status e 'inativa'."""
+def remover_usina(
+    usina_id: int,
+    usuario: Usuario = Depends(obter_usuario_atual),
+) -> None:
+    """Remove uma usina inativa. Requer autenticacao."""
     usina_service.remover(usina_id)
